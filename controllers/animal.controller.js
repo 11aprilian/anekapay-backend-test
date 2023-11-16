@@ -2,26 +2,28 @@ const { Sequelize } = require("sequelize");
 const models = require("../models");
 const { Animal } = models;
 
+function handleError(res, error) {
+  res.status(500).send({
+    status: res.statusCode,
+    message: error.message,
+  });
+}
+
 module.exports = {
   getAllAnimal: async (req, res) => {
     try {
       const animals = await Animal.findAll();
 
-      if (animals == 0) {
-        res.status(404).json({
-          message: "Data not found!",
-        });
-      } else {
-        res.json({
-          message: "Data found!",
-          data: animals,
-        });
+      if (animals.length === 0) {
+        return res.status(404).json({ message: "Data not found!" });
       }
-    } catch (error) {
-      res.status(500).send({
-        status: res.statusCode,
-        message: error.message,
+
+      return res.json({
+        message: "Data found!",
+        data: animals,
       });
+    } catch (error) {
+      handleError(res, error);
     }
   },
 
@@ -30,47 +32,36 @@ module.exports = {
       const { id } = req.params;
       const animal = await Animal.findByPk(id);
 
-      if (animal) {
-        res.status(200).json({
-          message: "Data found!",
-          data: animal,
-        });
-      } else {
-        res.status(404).json({ error: "Data not found!" });
+      if (!animal) {
+        return res.status(404).json({ error: "Data not found!" });
       }
-    } catch (error) {
-      res.status(500).send({
-        status: res.statusCode,
-        message: error.message,
+
+      return res.status(200).json({
+        message: "Data found!",
+        data: animal,
       });
+    } catch (error) {
+      handleError(res, error);
     }
   },
 
   addAnimal: async (req, res) => {
     try {
-      const { name } = req.body;
+      const { name, class: animalClass, legs } = req.body;
       const sameAnimalName = await Animal.findOne({ where: { name } });
 
       if (sameAnimalName) {
-        res.status(400).json({
-          error: "Data already exist!",
-        });
-      } else {
-        const animal = await Animal.create({
-          name: req.body.name,
-          class: req.body.class,
-          legs: req.body.legs,
-        });
-        res.status(201).json({
-          message: "Data saved!",
-          data: animal,
-        });
+        return res.status(400).json({ error: "Data already exists!" });
       }
-    } catch (error) {
-      res.status(500).send({
-        status: res.statusCode,
-        message: error.message,
+
+      const animal = await Animal.create({ name, class: animalClass, legs });
+
+      return res.status(201).json({
+        message: "Data saved!",
+        data: animal,
       });
+    } catch (error) {
+      handleError(res, error);
     }
   },
 
@@ -79,24 +70,21 @@ module.exports = {
       const { id } = req.params;
       const existingAnimal = await Animal.findByPk(id);
 
-      if (existingAnimal) {
-        await existingAnimal.destroy();
-        res.json({ message: "Data deleted!" });
-      } else {
-        res.status(404).json({ error: "Data not found!" });
+      if (!existingAnimal) {
+        return res.status(404).json({ error: "Data not found!" });
       }
+
+      await existingAnimal.destroy();
+      return res.json({ message: "Data deleted!" });
     } catch (error) {
-      res.status(500).send({
-        status: res.statusCode,
-        message: error.message,
-      });
+      handleError(res, error);
     }
   },
 
   updateAnimalByID: async (req, res) => {
     try {
       const { id } = req.params;
-      const { name } = req.body;
+      const { name, class: animalClass, legs } = req.body;
       const existingAnimal = await Animal.findByPk(id);
 
       if (existingAnimal) {
@@ -105,43 +93,34 @@ module.exports = {
         });
 
         if (duplicateAnimal) {
-          res.status(400).json({ error: "Animal name already exist!" });
-        } else {
-          await existingAnimal.update({
-            name: req.body.name,
-            class: req.body.class,
-            legs: req.body.legs,
-          });
-          res.status(200).json({
-            message: "Data updated!",
-            data: existingAnimal,
-          });
+          return res.status(400).json({ error: "Animal name already exists!" });
         }
-      } else {
-        const sameAnimalName = await Animal.findOne({ where: { name } });
 
-        if (sameAnimalName) {
-          res.status(400).json({
-            error: "Data already exist!",
-          });
-        } else {
-          const animal = await Animal.create({
-            id: id,
-            name: req.body.name,
-            class: req.body.class,
-            legs: req.body.legs,
-          });
-          res.status(201).json({
-            message: "Data saved!",
-            data: animal,
-          });
-        }
+        await existingAnimal.update({ name, class: animalClass, legs });
+        return res.status(200).json({
+          message: "Data updated!",
+          data: existingAnimal,
+        });
       }
-    } catch (error) {
-      res.status(500).send({
-        status: res.statusCode,
-        message: error.message,
+
+      const sameAnimalName = await Animal.findOne({ where: { name } });
+
+      if (sameAnimalName) {
+        return res.status(400).json({ error: "Data already exists!" });
+      }
+
+      const animal = await Animal.create({
+        id,
+        name,
+        class: animalClass,
+        legs,
       });
+      return res.status(201).json({
+        message: "Data not registered, Save new data!",
+        data: animal,
+      });
+    } catch (error) {
+      handleError(res, error);
     }
   },
 };
