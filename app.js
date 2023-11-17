@@ -11,7 +11,7 @@ app.use(
   })
 );
 app.use(express.json());
-app.use(allRoutes);
+app.use("/v1", allRoutes);
 
 app.listen(PORT, () => {
   console.log("Server Running on " + PORT);
